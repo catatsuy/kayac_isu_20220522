@@ -16,7 +16,7 @@ services:
     cpus: 1
     mem_limit: 1g
     # Go実装の場合は golang/ node実装の場合は node/
-    build: node/
+    build: golang/
     environment:
       ISUCON_DB_HOST: mysql
       ISUCON_DB_PORT: 3306
