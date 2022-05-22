@@ -37,6 +37,17 @@ type PlaylistRow struct {
 	UpdatedAt   time.Time `db:"updated_at"`
 }
 
+type PlaylistWithFavoriteCountRow struct {
+	ID            int       `db:"id"`
+	ULID          string    `db:"ulid"`
+	Name          string    `db:"name"`
+	UserAccount   string    `db:"user_account"`
+	IsPublic      bool      `db:"is_public"`
+	FavoriteCount int       `db:"favorite_count"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+}
+
 type PlaylistSongRow struct {
 	PlaylistID int `db:"playlist_id"`
 	SortOrder  int `db:"sort_order"`
