@@ -584,7 +584,7 @@ func getFavoritedPlaylistSummariesByUserAccount(ctx context.Context, db connOrTx
 	if err := db.SelectContext(
 		ctx,
 		&playlistFavorites,
-		"SELECT * FROM playlist_favorite where favorite_user_account = ? ORDER BY created_at DESC",
+		"SELECT * FROM playlist_favorite where favorite_user_account = ? ORDER BY id DESC",
 		userAccount,
 	); err != nil {
 		return nil, fmt.Errorf(
