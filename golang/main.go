@@ -360,18 +360,22 @@ func getSongByULID(ctx context.Context, db connOrTx, songULID string) (*SongRow,
 
 func isFavoritedBy(ctx context.Context, db connOrTx, userAccount string, playlistID int) (bool, error) {
 	var count int
-	if err := db.GetContext(
+	err := db.GetContext(
 		ctx,
 		&count,
-		"SELECT COUNT(*) AS cnt FROM playlist_favorite where favorite_user_account = ? AND playlist_id = ?",
+		"SELECT 1 FROM playlist_favorite where favorite_user_account = ? AND playlist_id = ? LIMIT 1",
 		userAccount, playlistID,
-	); err != nil {
+	)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
 		return false, fmt.Errorf(
 			"error Get count of playlist_favorite by favorite_user_account=%s, playlist_id=%d: %w",
 			userAccount, playlistID, err,
 		)
 	}
-	return count > 0, nil
+	return true, nil
 }
 
 func getFavoritesCountByPlaylistID(ctx context.Context, db connOrTx, playlistID int) (int, error) {
