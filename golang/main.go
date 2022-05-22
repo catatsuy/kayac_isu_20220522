@@ -76,6 +76,9 @@ func cacheControllPrivate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+var songIDs map[int]SongRow
+var songULIDs map[string]SongRow
+
 func main() {
 	e := echo.New()
 	e.Debug = true
@@ -139,6 +142,15 @@ func main() {
 	}
 	log.Print("DB ready!")
 	defer db.Close()
+
+	songRows := make([]SongRow, 0, 347677)
+	songIDs = make(map[int]SongRow)
+	songULIDs = make(map[string]SongRow)
+	db.SelectContext(context.Background(), &songRows, "SELECT * FROM song")
+	for _, sr := range songRows {
+		songIDs[sr.ID] = sr
+		songULIDs[sr.ULID] = sr
+	}
 
 	sessionStore, err = mysqlstore.NewMySQLStoreFromConnection(db.DB, "sessions_golang", "/", 86400, []byte("powawa"))
 	if err != nil {
@@ -348,14 +360,11 @@ type connOrTx interface {
 }
 
 func getSongByULID(ctx context.Context, db connOrTx, songULID string) (*SongRow, error) {
-	var row SongRow
-	if err := db.GetContext(ctx, &row, "SELECT * FROM song WHERE `ulid` = ?", songULID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("error Get song by ulid=%s: %w", songULID, err)
+	s, ok := songULIDs[songULID]
+	if !ok {
+		return nil, nil
 	}
-	return &row, nil
+	return &s, nil
 }
 
 func isFavoritedBy(ctx context.Context, db connOrTx, userAccount string, playlistID int) (bool, error) {
@@ -706,15 +715,7 @@ func getPlaylistDetailByPlaylistULID(ctx context.Context, db connOrTx, playlistU
 
 	songs := make([]Song, 0, len(resPlaylistSongs))
 	for _, row := range resPlaylistSongs {
-		var song SongRow
-		if err := db.GetContext(
-			ctx,
-			&song,
-			"SELECT * FROM song WHERE id = ?",
-			row.SongID,
-		); err != nil {
-			return nil, fmt.Errorf("error Get song by id=%d: %w", row.SongID, err)
-		}
+		song := songIDs[row.SongID]
 
 		var artist ArtistRow
 		if err := db.GetContext(
