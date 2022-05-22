@@ -387,7 +387,7 @@ func getRecentPlaylistSummaries(ctx context.Context, db connOrTx, userAccount st
 	if err := db.SelectContext(
 		ctx,
 		&allPlaylists,
-		"SELECT * FROM playlist where is_public = ? ORDER BY created_at DESC",
+		"SELECT * FROM playlist where is_public = ? ORDER BY created_at DESC LIMIT 150",
 		true,
 	); err != nil {
 		return nil, fmt.Errorf(
