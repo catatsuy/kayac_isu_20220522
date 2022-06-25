@@ -566,20 +566,39 @@ func getPopularPlaylistSummaries(ctx context.Context, db connOrTx, userAccount s
 		return nil, nil
 	}
 	playlists := make([]Playlist, 0, len(popular))
+
+	accounts := make([]string, 0, len(popular))
+	playlistIDs := make([]int, 0, len(popular))
+	usersMap := make(map[string]*UserRow)
+	songsCountByPlaylistIDsMap := make(map[int]int)
 	for _, playlist := range popular {
-		user, err := getUserByAccount(ctx, db, playlist.UserAccount)
-		if err != nil {
-			return nil, fmt.Errorf("error getUserByAccount: %w", err)
-		}
+		accounts = append(accounts, playlist.UserAccount)
+		playlistIDs = append(playlistIDs, playlist.ID)
+	}
+	users, err := getUsersByAccount(ctx, db, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("error getUserByAccount: %w", err)
+	}
+	for _, u := range users {
+		usersMap[u.Account] = u
+	}
+
+	pids, err := getSongsCountByPlaylistIDs(ctx, db, playlistIDs)
+	if err != nil {
+		return nil, fmt.Errorf("error getSongsCountByPlaylistIDs: %w", err)
+	}
+	for _, pid := range pids {
+		songsCountByPlaylistIDsMap[pid.PlaylistID] = pid.Count
+	}
+
+	for _, playlist := range popular {
+		user := usersMap[playlist.UserAccount]
 		// banされていたら除外
 		if user == nil || user.IsBan {
 			continue
 		}
 
-		songCount, err := getSongsCountByPlaylistID(ctx, db, playlist.ID)
-		if err != nil {
-			return nil, fmt.Errorf("error getSongsCountByPlaylistID: %w", err)
-		}
+		songCount := songsCountByPlaylistIDsMap[playlist.ID]
 		favoriteCount, err := getFavoritesCountByPlaylistID(ctx, db, playlist.ID)
 		if err != nil {
 			return nil, fmt.Errorf("error getFavoritesCountByPlaylistID: %w", err)
