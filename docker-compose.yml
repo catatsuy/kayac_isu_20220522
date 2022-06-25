@@ -25,6 +25,7 @@ services:
       ISUCON_DB_USER: isucon
       ISUCON_DB_PASSWORD: isucon
       ISUCON_DB_NAME: isucon_listen80
+      DEV: "${DEV:-0}"
     links:
       - mysql
     volumes:
