@@ -427,6 +427,30 @@ func getFavoritesCountByPlaylistID(ctx context.Context, db connOrTx, playlistID 
 	return count, nil
 }
 
+func getSongsCountByPlaylistIDs(ctx context.Context, db connOrTx, playlistIDs []int) (scp []SongsCountWithPlaylistID, err error) {
+	scp = make([]SongsCountWithPlaylistID, 0, len(playlistIDs))
+	query, args, err := sqlx.In("SELECT playlist_id, COUNT(*) AS cnt FROM playlist_song where playlist_id IN (?) group by playlist_id", playlistIDs)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"error Select count of playlist_song by playlist_id=%v: %w",
+			playlistIDs, err,
+		)
+	}
+	err = db.SelectContext(
+		ctx,
+		&scp,
+		query,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"error Select count of playlist_song by playlist_id=%v: %w",
+			playlistIDs, err,
+		)
+	}
+	return scp, nil
+}
+
 func getSongsCountByPlaylistID(ctx context.Context, db connOrTx, playlistID int) (int, error) {
 	var count int
 	if err := db.GetContext(
@@ -462,9 +486,12 @@ func getRecentPlaylistSummaries(ctx context.Context, db connOrTx, userAccount st
 
 	playlists := make([]Playlist, 0, len(allPlaylists))
 	accounts := make([]string, 0, len(allPlaylists))
+	playlistIDs := make([]int, 0, len(allPlaylists))
 	usersMap := make(map[string]*UserRow)
+	songsCountByPlaylistIDsMap := make(map[int]int)
 	for _, playlist := range allPlaylists {
 		accounts = append(accounts, playlist.UserAccount)
+		playlistIDs = append(playlistIDs, playlist.ID)
 	}
 	users, err := getUsersByAccount(ctx, db, accounts)
 	if err != nil {
@@ -473,16 +500,22 @@ func getRecentPlaylistSummaries(ctx context.Context, db connOrTx, userAccount st
 	for _, u := range users {
 		usersMap[u.Account] = u
 	}
+
+	pids, err := getSongsCountByPlaylistIDs(ctx, db, playlistIDs)
+	if err != nil {
+		return nil, fmt.Errorf("error getSongsCountByPlaylistIDs: %w", err)
+	}
+	for _, pid := range pids {
+		songsCountByPlaylistIDsMap[pid.PlaylistID] = pid.Count
+	}
+
 	for _, playlist := range allPlaylists {
 		user := usersMap[playlist.UserAccount]
 		if user == nil || user.IsBan {
 			continue
 		}
 
-		songCount, err := getSongsCountByPlaylistID(ctx, db, playlist.ID)
-		if err != nil {
-			return nil, fmt.Errorf("error getSongsCountByPlaylistID: %w", err)
-		}
+		songCount := songsCountByPlaylistIDsMap[playlist.ID]
 		favoriteCount, err := getFavoritesCountByPlaylistID(ctx, db, playlist.ID)
 		if err != nil {
 			return nil, fmt.Errorf("error getFavoritesCountByPlaylistID: %w", err)
