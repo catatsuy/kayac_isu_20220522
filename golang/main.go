@@ -450,11 +450,20 @@ func getRecentPlaylistSummaries(ctx context.Context, db connOrTx, userAccount st
 	}
 
 	playlists := make([]Playlist, 0, len(allPlaylists))
+	accounts := make([]string, 0, len(allPlaylists))
+	usersMap := make(map[string]*UserRow)
 	for _, playlist := range allPlaylists {
-		user, err := getUserByAccount(ctx, db, playlist.UserAccount)
-		if err != nil {
-			return nil, fmt.Errorf("error getUserByAccount: %w", err)
-		}
+		accounts = append(accounts, playlist.UserAccount)
+	}
+	users, err := getUsersByAccount(ctx, db, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("error getUserByAccount: %w", err)
+	}
+	for _, u := range users {
+		usersMap[u.Account] = u
+	}
+	for _, playlist := range allPlaylists {
+		user := usersMap[playlist.UserAccount]
 		if user == nil || user.IsBan {
 			continue
 		}
@@ -777,6 +786,26 @@ func getPlaylistFavoritesByPlaylistIDAndUserAccount(ctx context.Context, db conn
 		return nil, nil
 	}
 	return &result[0], nil
+}
+
+func getUsersByAccount(ctx context.Context, db connOrTx, accounts []string) ([]*UserRow, error) {
+	result := make([]*UserRow, 0, len(accounts))
+	query, args, err := sqlx.In("SELECT * FROM user WHERE `account` IN (?);", accounts)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.SelectContext(
+		ctx,
+		&result,
+		query,
+		args...,
+	); err != nil {
+		return nil, fmt.Errorf(
+			"error Select user by accounts: %+v: %w",
+			accounts, err,
+		)
+	}
+	return result, nil
 }
 
 func getUserByAccount(ctx context.Context, db connOrTx, account string) (*UserRow, error) {
