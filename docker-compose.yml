@@ -4,8 +4,10 @@ services:
   nginx:
     image: nginx:1.20
     volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./public:/public
+      - ./nginx/logs:/var/log/nginx
     ports:
       - "80:80"
     links:
